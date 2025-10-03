@@ -11,7 +11,7 @@ import {
   User,
   LogOut,
 } from "lucide-react";
-
+import { Link } from "react-router-dom";
 import ProductCarouselDemo from "./HotDealsCarousel";
 import BestSellingProducts from "./bestSellingProducts";
 import Freeshipping from "./Freeshipping";
@@ -646,12 +646,12 @@ const KapeeStore: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <button
-                    onClick={() => (window.location.href = "/login")}
-                    className="font-semibold text-gray-800 hover:text-yellow-600 transition-colors cursor-pointer"
-                  >
-                    SIGN IN
-                  </button>
+                  <Link
+  to="/login"
+  className="font-semibold text-gray-800 hover:text-yellow-600 transition-colors cursor-pointer"
+>
+  SIGN IN
+</Link>
                 )}
               </div>
 
