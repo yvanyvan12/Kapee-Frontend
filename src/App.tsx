@@ -26,31 +26,34 @@ function App() {
             <Route path="blogs" element={<Blogs />} />
             <Route path="cart" element={<Cart />} />
             <Route path="order" element={<Order />} />
-            <Route 
-              path="loginForm" 
-              element={<LoginForm onClose={() => {}} />} 
-            />
-            <Route path="signupform" element={<SignupForm />} />
-            <Route path="forgotpasswordmodel" element={<ForgotPasswordModel onClose={() => {}} />} />
             <Route path="contact" element={<Contact />} />
+            
+            {/* Auth routes - moved inside layout */}
+            <Route path="login" element={<LoginForm onClose={() => {}} />} />
+            <Route path="loginForm" element={<LoginForm onClose={() => {}} />} />
+            <Route path="signup" element={<SignupForm />} />
+            <Route path="signupform" element={<SignupForm />} />
+            <Route path="forgot-password" element={<ForgotPasswordModel onClose={() => {}} />} />
+            <Route path="forgotpasswordmodel" element={<ForgotPasswordModel onClose={() => {}} />} />
           </Route>
           
           {/* Protected Dashboard routes WITHOUT layout */}
           <Route 
             path="/dashboard" 
-            element={<Dashboard />} 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
           />
+          
           <Route 
-            path="orders" 
+            path="/orders" 
             element={
               <ProtectedRoute>
                 <Order />
               </ProtectedRoute>
             } 
-          />
-          <Route 
-            path="/login" 
-            element={<LoginForm onClose={() => {}} />} 
           />
         </Routes>
       </BrowserRouter>
