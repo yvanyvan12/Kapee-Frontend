@@ -1,138 +1,144 @@
-import { useState } from 'react';
-import { Heart, ShoppingCart, Grid, List, ChevronDown, Star, X, Eye } from 'lucide-react';
-import image1 from '../assets/image.png';
-import image2 from '../assets/image2.jpg';
-import image3 from '../assets/image3.jpg';
-import image4 from '../assets/image4.jpg';
-import image5 from '../assets/image5.jpg';
-import image6 from '../assets/image6.jpg';
-import { Link } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import { Heart, ShoppingCart, Grid, List, ChevronDown, X, Eye } from 'lucide-react';
 
+// Real product interface matching your database
 interface Product {
-  id: number;
+  _id: string;
   name: string;
-  category: string;
   price: number;
-  originalPrice: number | null;
-  discount: string | null;
-  rating: number;
-  reviews: number;
-  image: string;
   description: string;
-  colors: string[];
-  sizes: string[];
+  imageUrl?: string;
+  category: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
+interface Category {
+  name: string;
+  count: number;
+}
+
+// Utility function to get placeholder image
+const getPlaceholderImage = (productName: string, category: string) => {
+  const encodedName = encodeURIComponent(productName);
+  const encodedCategory = encodeURIComponent(category);
+  return `https://via.placeholder.com/400x300/f3f4f6/6b7280?text=${encodedName}`;
+};
+
 const EcommerceShop = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [priceRange, setPriceRange] = useState<number[]>([0, 500]);
+  const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
   const [sortBy, setSortBy] = useState<string>('default');
   const [viewMode, setViewMode] = useState<string>('grid');
   const [showModal, setShowModal] = useState<boolean>(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [loadingProducts, setLoadingProducts] = useState<{[key: string]: boolean}>({});
 
+  // Get token from localStorage
+  const getToken = () => {
+    return localStorage.getItem("authToken") || localStorage.getItem("token");
+  };
 
-  const categories = [
-    { name: 'Accessories', count: 7 },
-    { name: 'Bags & Backpacks', count: 4 },
-    { name: 'Beauty & Care', count: 2 },
-    { name: 'Jewellery', count: 4 },
-    { name: 'Men', count: 7 },
-    { name: 'Shoes', count: 4 },
-    { name: 'Watches', count: 4 },
-    { name: 'Women', count: 9 }
-  ];
-
-  const products = [
-    {
-      id: 1,
-      name: 'Men Aviator Sunglasses',
-      category: 'SOCKS, SUNGLASSES',
-      price: 50.00,
-      originalPrice: 60.00,
-      discount: '17% Off',
-      rating: 4,
-      reviews: 1,
-      image: image1,
-      description: 'Classic aviator sunglasses with UV protection and premium metal frame.',
-      colors: ['Black', 'Silver', 'Gold'],
-      sizes: ['One Size']
-    },
-    {
-      id: 2,
-      name: 'Light Blue Solid Low Rise Skinny Fit Jeans',
-      category: 'JEANS',
-      price: 89.00,
-      originalPrice: 96.00,
-      discount: '7% Off',
-      rating: 2,
-      reviews: 1,
-      image: image2,
-      description: 'Comfortable skinny fit jeans perfect for casual wear.',
-      colors: ['Light Blue', 'Dark Blue', 'Black'],
-      sizes: ['28', '30', '32', '34', '36']
-    },
-    {
-      id: 3,
-      name: 'Unisex Tan Solid Cabin Trolley Bag',
-      category: 'TROLLEY BAG',
-      price: 278.00,
-      originalPrice: null,
-      discount: null,
-      rating: 3,
-      reviews: 1,
-      image: image3,
-      description: 'Durable cabin trolley bag with 4 wheels and TSA lock.',
-      colors: ['Tan', 'Black', 'Navy'],
-      sizes: ['Cabin Size']
-    },
-    {
-      id: 4,
-      name: 'Wireless Bluetooth Headphones',
-      category: 'ACCESSORIES',
-      price: 120.00,
-      originalPrice: 150.00,
-      discount: '20% Off',
-      rating: 5,
-      reviews: 23,
-      image: image4,
-      description: 'Premium wireless headphones with noise cancellation.',
-      colors: ['Black', 'White', 'Silver'],
-      sizes: ['One Size']
-    },
-    {
-      id: 5,
-      name: 'Leather Crossbody Bag',
-      category: 'BAGS & BACKPACKS',
-      price: 85.00,
-      originalPrice: 100.00,
-      discount: '15% Off',
-      rating: 4,
-      reviews: 12,
-      image: image5,
-      description: 'Elegant leather crossbody bag for everyday use.',
-      colors: ['Brown', 'Black', 'Cognac'],
-      sizes: ['Medium']
-    },
-    {
-      id: 6,
-      name: 'Smart Fitness Watch',
-      category: 'WATCHES',
-      price: 199.00,
-      originalPrice: 249.00,
-      discount: '20% Off',
-      rating: 5,
-      reviews: 45,
-      image: image6,
-      description: 'Advanced fitness tracking with heart rate monitoring.',
-      colors: ['Black', 'Silver', 'Rose Gold'],
-      sizes: ['S/M', 'L/XL']
+  // Fetch real products from database
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:3000/products");
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Products loaded:", data);
+        
+        const productsData = data.data || [];
+        setProducts(productsData);
+        
+        // Generate categories from products
+        const categoryMap = new Map<string, number>();
+        productsData.forEach((product: Product) => {
+          const category = product.category;
+          categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+        });
+        
+        const categoriesData = Array.from(categoryMap.entries()).map(([name, count]) => ({
+          name,
+          count
+        }));
+        
+        setCategories(categoriesData);
+        
+        // Set price range based on actual product prices
+        if (productsData.length > 0) {
+          const prices = productsData.map((p: Product) => p.price);
+          const minPrice = Math.min(...prices);
+          const maxPrice = Math.max(...prices);
+          setPriceRange([minPrice, maxPrice]);
+        }
+        
+      } else {
+        setError("Failed to fetch products");
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      setError("Network error. Please check if your server is running.");
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
+  // Add item to cart via API
+  const addToCart = async (product: Product) => {
+    setLoadingProducts(prev => ({ ...prev, [product._id]: true }));
+    
+    try {
+      const token = getToken();
+      console.log("Token found:", token ? "Yes" : "No");
+      
+      if (!token) {
+        alert("Please login to add items to cart");
+        return;
+      }
+
+      console.log("Adding to cart:", { productId: product._id, quantity: 1 });
+
+      const response = await fetch("http://localhost:3000/cart/add", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId: product._id,
+          quantity: 1,
+        }),
+      });
+
+      console.log("Response status:", response.status);
+      const responseData = await response.json();
+      console.log("Response data:", responseData);
+
+      if (response.ok) {
+        alert(`${product.name} added to cart successfully!`);
+      } else {
+        console.error("Add to cart failed:", responseData);
+        alert(responseData.message || "Failed to add item to cart");
+      }
+    } catch (err) {
+      console.error("Network error:", err);
+      alert("Network error. Please check if your server is running on http://localhost:3000");
+    } finally {
+      setLoadingProducts(prev => ({ ...prev, [product._id]: false }));
+    }
+  };
+
+  // Filter and sort products
   const filteredProducts = products.filter(product => {
-    const matchesCategory = !selectedCategory || product.category.toLowerCase().includes(selectedCategory.toLowerCase());
+    const matchesCategory = !selectedCategory || 
+      product.category.toLowerCase() === selectedCategory.toLowerCase();
     const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
     return matchesCategory && matchesPrice;
   }).sort((a, b) => {
@@ -141,14 +147,14 @@ const EcommerceShop = () => {
         return a.price - b.price;
       case 'price-high':
         return b.price - a.price;
-      case 'rating':
-        return b.rating - a.rating;
+      case 'name':
+        return a.name.localeCompare(b.name);
       default:
         return 0;
     }
   });
 
-  const toggleWishlist = (productId: number) => {
+  const toggleWishlist = (productId: string) => {
     setWishlist(prev =>
       prev.includes(productId)
         ? prev.filter(id => id !== productId)
@@ -156,28 +162,67 @@ const EcommerceShop = () => {
     );
   };
 
-  const addToCart = (product: Product) => {
-    console.log('Adding to cart:', product.name);
-    // TODO: Implement cart functionality
-  };
-
   const openProductModal = (product: Product) => {
     setSelectedProduct(product);
     setShowModal(true);
   };
 
-  const StarRating = ({ rating, reviews }: { rating: number; reviews: number }) => (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map(star => (
-        <Star 
-          key={star} 
-          size={14} 
-          className={star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
-        />
-      ))}
-      <span className="text-sm text-gray-500 ml-1">({reviews})</span>
-    </div>
-  );
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <h1 className="text-4xl font-bold text-center text-gray-900 mb-4">Shop</h1>
+            <div className="flex items-center justify-center text-sm text-gray-500">
+              <span>Home</span>
+              <span className="mx-2">/</span>
+              <span>Shop</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 py-16">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading products...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <h1 className="text-4xl font-bold text-center text-gray-900 mb-4">Shop</h1>
+            <div className="flex items-center justify-center text-sm text-gray-500">
+              <span>Home</span>
+              <span className="mx-2">/</span>
+              <span>Shop</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 py-16">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">{error}</div>
+            <button
+              onClick={fetchProducts}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -204,6 +249,15 @@ const EcommerceShop = () => {
                 <ChevronDown size={18} />
               </div>
               <div className="space-y-3">
+                <div 
+                  className="flex items-center justify-between cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => setSelectedCategory('')}
+                >
+                  <span className={`text-sm ${selectedCategory === '' ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                    All Categories
+                  </span>
+                  <span className="text-xs text-gray-400">({products.length})</span>
+                </div>
                 {categories.map(category => (
                   <div 
                     key={category.name}
@@ -233,17 +287,22 @@ const EcommerceShop = () => {
                 </div>
                 <input 
                   type="range" 
-                  min="0" 
-                  max="500" 
+                  min={products.length > 0 ? Math.min(...products.map(p => p.price)) : 0} 
+                  max={products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000} 
                   value={priceRange[1]}
-                  onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+                  onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                   className="w-full"
                 />
-                <div className="flex gap-2">
-                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                    $35
-                  </span>
-                </div>
+                <button 
+                  onClick={() => {
+                    if (products.length > 0) {
+                      setPriceRange([Math.min(...products.map(p => p.price)), Math.max(...products.map(p => p.price))]);
+                    }
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Reset Price Filter
+                </button>
               </div>
             </div>
           </div>
@@ -290,91 +349,128 @@ const EcommerceShop = () => {
                     <option value="default">Default sorting</option>
                     <option value="price-low">Price: Low to High</option>
                     <option value="price-high">Price: High to Low</option>
-                    <option value="rating">Highest Rated</option>
+                    <option value="name">Name: A to Z</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            {/* Product Grid */}
-            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
-              {filteredProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-lg shadow-sm overflow-hidden group hover:shadow-lg transition-all duration-300">
-                  <div className="relative overflow-hidden">
-                    <img 
-                      src={product.image} 
-                      alt={product.name}
-                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    
-                    {/* Hover Buttons */}
-                    <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <button 
-                          onClick={() => addToCart(product)}
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors transform -translate-y-2 group-hover:translate-y-0"
-                        >
-                          <ShoppingCart size={18} />
-                         <Link to="/Cart">Add to Cart</Link> 
-                        </button>
-                        <Link 
-                          to="/Cart" 
-                          className="bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-700 transition-colors transform -translate-y-2 group-hover:translate-y-0"
-                        >
-                          View Cart
-                        </Link>
-                        <button 
-                          onClick={() => openProductModal(product)}
-                          className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors transform -translate-y-2 group-hover:translate-y-0"
-                        >
-                          <Eye size={18} />
-                        </button>
+            {/* Product Grid - FIXED */}
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No products found matching your criteria.</p>
+                <button 
+                  onClick={() => {
+                    setSelectedCategory('');
+                    if (products.length > 0) {
+                      setPriceRange([Math.min(...products.map(p => p.price)), Math.max(...products.map(p => p.price))]);
+                    }
+                  }}
+                  className="mt-4 text-blue-600 hover:text-blue-700"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            ) : (
+              <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
+                {filteredProducts.map(product => (
+                  <div key={product._id} className="bg-white rounded-lg shadow-sm overflow-hidden group hover:shadow-lg transition-all duration-300">
+                    {/* FIXED IMAGE SECTION */}
+                    <div className="relative overflow-hidden">
+                      <div className="w-full h-64 bg-gray-100 relative">
+                        {/* Remove debug info and fix image display */}
+                        {product.imageUrl && product.imageUrl.trim() !== '' ? (
+                          <img 
+                            src={product.imageUrl} 
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onLoad={() => console.log('Image loaded successfully:', product.imageUrl)}
+                            onError={(e) => {
+                              console.log('Image failed to load:', product.imageUrl);
+                              // Replace failed image with placeholder
+                              (e.target as HTMLImageElement).src = getPlaceholderImage(product.name, product.category);
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={getPlaceholderImage(product.name, product.category)}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        )}
                       </div>
+                      
+                      {/* FIXED Hover Buttons with proper z-index and visibility */}
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="flex gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(product);
+                            }}
+                            disabled={loadingProducts[product._id]}
+                            className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium shadow-lg"
+                          >
+                            {loadingProducts[product._id] ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            ) : (
+                              <ShoppingCart size={16} />
+                            )}
+                            {loadingProducts[product._id] ? 'Adding...' : 'Add to Cart'}
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openProductModal(product);
+                            }}
+                            className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors shadow-lg"
+                          >
+                            <Eye size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Wishlist Button - Fixed positioning */}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWishlist(product._id);
+                        }}
+                        className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors z-10"
+                      >
+                        <Heart 
+                          size={16} 
+                          className={wishlist.includes(product._id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}
+                        />
+                      </button>
+
+                      {/* New Product Badge */}
+                      {new Date(product.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && (
+                        <div className="absolute top-3 left-3 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium z-10">
+                          NEW
+                        </div>
+                      )}
                     </div>
 
-                    {/* Wishlist Button */}
-                    <button 
-                      onClick={() => toggleWishlist(product.id)}
-                      className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
-                    >
-                      <Heart 
-                        size={18} 
-                        className={wishlist.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}
-                      />
-                    </button>
-
-                    {/* Discount Badge */}
-                    {product.discount && (
-                      <div className="absolute top-4 left-4 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-                        {product.discount}
+                    {/* Product Info */}
+                    <div className="p-4">
+                      <div className="text-xs text-gray-500 mb-1 uppercase">{product.category}</div>
+                      <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-gray-900">${product.price.toFixed(2)}</span>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="p-4">
-                    <div className="text-xs text-gray-500 mb-1">{product.category}</div>
-                    <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-                    
-                    <StarRating rating={product.rating} reviews={product.reviews} />
-                    
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-lg font-bold text-gray-900">${product.price}</span>
-                      {product.originalPrice && (
-                        <span className="text-sm text-gray-500 line-through">${product.originalPrice}</span>
-                      )}
-                      {product.discount && (
-                        <span className="text-sm text-green-600 font-medium">{product.discount}</span>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Product Modal */}
+      {/* FIXED Product Modal */}
       {showModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -390,47 +486,45 @@ const EcommerceShop = () => {
             
             <div className="p-6">
               <div className="grid md:grid-cols-2 gap-8">
+                {/* Fixed Modal Image */}
                 <div>
-                  <img 
-                    src={selectedProduct.image} 
-                    alt={selectedProduct.name}
-                    className="w-full rounded-lg"
-                  />
+                  <div className="w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
+                    {selectedProduct.imageUrl && selectedProduct.imageUrl.trim() !== '' ? (
+                      <img 
+                        src={selectedProduct.imageUrl} 
+                        alt={selectedProduct.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = getPlaceholderImage(selectedProduct.name, selectedProduct.category);
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={getPlaceholderImage(selectedProduct.name, selectedProduct.category)}
+                        alt={selectedProduct.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
                 </div>
                 
                 <div>
-                  <div className="text-sm text-gray-500 mb-2">{selectedProduct.category}</div>
-                  <StarRating rating={selectedProduct.rating} reviews={selectedProduct.reviews} />
+                  <div className="text-sm text-gray-500 mb-2 uppercase">{selectedProduct.category}</div>
                   
                   <div className="flex items-center gap-2 my-4">
-                    <span className="text-3xl font-bold text-gray-900">${selectedProduct.price}</span>
-                    {selectedProduct.originalPrice && (
-                      <span className="text-xl text-gray-500 line-through">${selectedProduct.originalPrice}</span>
-                    )}
+                    <span className="text-3xl font-bold text-gray-900">${selectedProduct.price.toFixed(2)}</span>
                   </div>
                   
                   <p className="text-gray-600 mb-6">{selectedProduct.description}</p>
                   
                   <div className="mb-4">
-                    <h4 className="font-medium mb-2">Colors:</h4>
-                    <div className="flex gap-2">
-                      {selectedProduct.colors.map(color => (
-                        <button key={color} className="border px-3 py-1 rounded text-sm hover:bg-gray-50">
-                          {color}
-                        </button>
-                      ))}
-                    </div>
+                    <h4 className="font-medium mb-2">Product ID:</h4>
+                    <p className="text-sm text-gray-500 font-mono">{selectedProduct._id}</p>
                   </div>
                   
-                  <div className="mb-6">
-                    <h4 className="font-medium mb-2">Sizes:</h4>
-                    <div className="flex gap-2">
-                      {selectedProduct.sizes.map(size => (
-                        <button key={size} className="border px-3 py-1 rounded text-sm hover:bg-gray-50">
-                          {size}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="mb-4">
+                    <h4 className="font-medium mb-2">Added:</h4>
+                    <p className="text-sm text-gray-500">{new Date(selectedProduct.createdAt).toLocaleDateString()}</p>
                   </div>
                   
                   <button 
@@ -438,10 +532,20 @@ const EcommerceShop = () => {
                       addToCart(selectedProduct);
                       setShowModal(false);
                     }}
-                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    disabled={loadingProducts[selectedProduct._id]}
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <ShoppingCart size={20} />
-                    Add to Cart
+                    {loadingProducts[selectedProduct._id] ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Adding to Cart...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart size={20} />
+                        Add to Cart
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -449,6 +553,16 @@ const EcommerceShop = () => {
           </div>
         </div>
       )}
+
+      {/* Add these styles to your global CSS or as a style tag */}
+      <style jsx>{`
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
     </div>
   );
 };

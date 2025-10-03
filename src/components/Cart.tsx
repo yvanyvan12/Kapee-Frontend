@@ -1,261 +1,187 @@
-import React, { useState } from "react";
-import { X, Plus, Minus, ShoppingBag, Trash2, ArrowLeft, CreditCard, Truck } from "lucide-react";
+// src/components/Cart.tsx - Fixed version with correct API endpoints and navigation to Order
+import React, { useState, useEffect } from "react";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  originalPrice?: number | null;
-  discount?: string | null;
-  rating: number;
-  reviews: number;
-  image: string;
-  description: string;
-  colors: string[];
-  sizes: string[];
-  quantity?: number;
+interface CartData {
+  _id: string;
+  userId: string;
+  items: {
+    productId: {
+      _id: string;
+      name: string;
+      price: number;
+      description: string;
+      imageUrl?: string;
+      category: string;
+      createdAt: string;
+      updatedAt: string;
+    };
+    quantity: number;
+    _id: string;
+  }[];
+  totalItems: number;
+  totalPrice: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface CartProps {
-  cartItems: Product[];
-  onUpdateQuantity: (id: number, quantity: number) => void;
-  onRemoveItem: (id: number) => void;
-  onClose?: () => void;
-  showAsModal?: boolean;
-}
+const Cart: React.FC = () => {
+  const [cartData, setCartData] = useState<CartData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
+  const [promoCode, setPromoCode] = useState<string>("");
+  const [updatingItems, setUpdatingItems] = useState<{[key: string]: boolean}>({});
+  const navigate = useNavigate(); // Added navigate
 
-const Cart: React.FC<CartProps> = ({ 
-  cartItems = [], 
-  onUpdateQuantity, 
-  onRemoveItem, 
-  onClose,
-  showAsModal = false 
-}) => {
-  const [promoCode, setPromoCode] = useState("");
-  const [isPromoApplied, setIsPromoApplied] = useState(false);
+  // Get token from localStorage
+  const getToken = () => {
+    return localStorage.getItem("authToken") || localStorage.getItem("token");
+  };
 
-  // Calculate totals
-  const subtotal = cartItems.reduce((acc, item) => acc + (item.price * (item.quantity || 1)), 0);
-  const shipping = subtotal > 100 ? 0 : 10; // Free shipping over $100
-  const promoDiscount = isPromoApplied ? subtotal * 0.1 : 0; // 10% discount
-  const total = subtotal + shipping - promoDiscount;
+  // Fetch cart items from backend
+  const fetchCartItems = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      const token = getToken();
+      if (!token) {
+        setError("Please login to view your cart");
+        setLoading(false);
+        return;
+      }
 
-  const applyPromoCode = () => {
-    if (promoCode.toLowerCase() === "save10") {
-      setIsPromoApplied(true);
+      console.log("Fetching cart with token:", token.substring(0, 20) + "...");
+
+      const response = await fetch("http://localhost:3000/cart/get", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("Cart response status:", response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Cart data received:", data);
+        
+        if (data.success && data.data) {
+          setCartData(data.data);
+        } else {
+          setCartData(null);
+        }
+
+      } else {
+        const errorData = await response.json();
+        console.log("Cart error:", errorData);
+        setError(errorData.message || "Failed to fetch cart items");
+      }
+    } catch (err) {
+      console.error("Cart fetch error:", err);
+      setError("Network error. Please check if your server is running.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const CartContent = () => (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b">
-        <div className="flex items-center gap-3">
-          <ShoppingBag size={24} className="text-blue-600" />
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Shopping Cart</h2>
-            <p className="text-sm text-gray-500">{cartItems.length} items</p>
-          </div>
-        </div>
-        {showAsModal && onClose && (
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X size={24} className="text-gray-500" />
-          </button>
-        )}
-      </div>
+  // Update cart item quantity
+  const updateCartQuantity = async (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
 
-      {cartItems.length === 0 ? (
-        // Empty Cart State
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <ShoppingBag size={64} className="text-gray-300 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Your cart is empty</h3>
-          <p className="text-gray-500 mb-6">Looks like you haven't added any items to your cart yet.</p>
-          {showAsModal && onClose && (
-            <button
-              onClick={onClose}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft size={20} />
-              Continue Shopping
-            </button>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="space-y-4">
-              {cartItems.map((item) => (
-                <div key={item.id} className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex gap-4">
-                    {/* Product Image */}
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={item.image} 
-                        alt={item.name}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                    </div>
+    setUpdatingItems(prev => ({ ...prev, [productId]: true }));
 
-                    {/* Product Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-semibold text-gray-900 line-clamp-2">{item.name}</h4>
-                          <p className="text-sm text-gray-500">{item.category}</p>
-                        </div>
-                        <button
-                          onClick={() => onRemoveItem(item.id)}
-                          className="text-gray-400 hover:text-red-500 p-1 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+    try {
+      const token = getToken();
+      const response = await fetch("http://localhost:3000/cart/update", {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId,
+          quantity: newQuantity
+        }),
+      });
 
-                      <div className="flex justify-between items-end">
-                        {/* Quantity Controls */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center border rounded-lg">
-                            <button
-                              onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) - 1)}
-                              disabled={item.quantity === 1}
-                              className="p-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              <Minus size={16} />
-                            </button>
-                            <span className="px-4 py-2 min-w-[3rem] text-center font-medium">
-                              {item.quantity || 1}
-                            </span>
-                            <button
-                              onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) + 1)}
-                              className="p-2 hover:bg-gray-50 transition-colors"
-                            >
-                              <Plus size={16} />
-                            </button>
-                          </div>
-                        </div>
+      if (response.ok) {
+        fetchCartItems(); // Refresh cart
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || "Failed to update item");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setUpdatingItems(prev => ({ ...prev, [productId]: false }));
+    }
+  };
 
-                        {/* Price */}
-                        <div className="text-right">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-lg text-gray-900">
-                              ${(item.price * (item.quantity || 1)).toFixed(2)}
-                            </span>
-                          </div>
-                          {item.originalPrice && (
-                            <span className="text-sm text-gray-500 line-through">
-                              ${(item.originalPrice * (item.quantity || 1)).toFixed(2)}
-                            </span>
-                          )}
-                          <div className="text-sm text-gray-500">
-                            ${item.price.toFixed(2)} each
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+  // Remove item from cart
+  const removeFromCart = async (productId: string) => {
+    setUpdatingItems(prev => ({ ...prev, [productId]: true }));
 
-            {/* Promo Code Section */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-3">Promo Code</h4>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  placeholder="Enter promo code (try: SAVE10)"
-                  className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isPromoApplied}
-                />
-                <button
-                  onClick={applyPromoCode}
-                  disabled={isPromoApplied || !promoCode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  Apply
-                </button>
-              </div>
-              {isPromoApplied && (
-                <div className="mt-2 text-sm text-green-600 font-medium">
-                  ✓ Promo code applied! 10% discount
-                </div>
-              )}
-            </div>
-          </div>
+    try {
+      const token = getToken();
+      const response = await fetch(`http://localhost:3000/cart/remove/${productId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
 
-          {/* Cart Summary */}
-          <div className="border-t bg-gray-50 p-6">
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between text-gray-600">
-                <span>Subtotal ({cartItems.length} items)</span>
-                <span>${subtotal.toFixed(2)}</span>
-              </div>
-              
-              <div className="flex justify-between text-gray-600">
-                <span className="flex items-center gap-2">
-                  <Truck size={16} />
-                  Shipping
-                  {subtotal > 100 && <span className="text-green-600 text-sm">(Free!)</span>}
-                </span>
-                <span>${shipping.toFixed(2)}</span>
-              </div>
+      if (response.ok) {
+        fetchCartItems(); // Refresh cart
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || "Failed to remove item");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setUpdatingItems(prev => ({ ...prev, [productId]: false }));
+    }
+  };
 
-              {isPromoApplied && (
-                <div className="flex justify-between text-green-600">
-                  <span>Promo Discount (10%)</span>
-                  <span>-${promoDiscount.toFixed(2)}</span>
-                </div>
-              )}
+  // Apply promo code
+  const applyPromoCode = () => {
+    if (promoCode.toLowerCase() === "save10") {
+      alert("Promo code applied! 10% discount");
+    } else {
+      alert("Invalid promo code");
+    }
+  };
 
-              <div className="border-t pt-3">
-                <div className="flex justify-between text-xl font-bold text-gray-900">
-                  <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
-                </div>
-              </div>
+  useEffect(() => {
+    fetchCartItems();
+  }, []);
 
-              {subtotal < 100 && (
-                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                  <p>Add ${(100 - subtotal).toFixed(2)} more for free shipping!</p>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <button className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                <CreditCard size={20} />
-                Proceed to Checkout
-              </button>
-              
-              {showAsModal && onClose && (
-                <button
-                  onClick={onClose}
-                  className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <ArrowLeft size={20} />
-                  Continue Shopping
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  if (showAsModal) {
+  if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          <CartContent />
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow-sm border-b">
+          <div className="container mx-auto px-4 py-6">
+            <h1 className="text-2xl font-bold text-gray-800">Shopping Cart</h1>
+            <nav className="flex items-center space-x-2 text-sm text-gray-500 mt-4">
+              <a href="/" className="hover:text-gray-700">Home</a>
+              <ChevronRight size={16} />
+              <a href="/shop" className="hover:text-gray-700">Shop</a>
+              <ChevronRight size={16} />
+              <span className="text-gray-800">Cart</span>
+            </nav>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your cart...</p>
+          </div>
         </div>
       </div>
     );
@@ -263,122 +189,166 @@ const Cart: React.FC<CartProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex items-center text-sm text-gray-500 mb-4">
-            <span>Home</span>
-            <span className="mx-2">/</span>
-            <span>Shop</span>
-            <span className="mx-2">/</span>
-            <span className="text-gray-900">Cart</span>
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold text-gray-800">Shopping Cart</h1>
+          <nav className="flex items-center space-x-2 text-sm text-gray-500 mt-4">
+            <a href="/" className="hover:text-gray-700">Home</a>
+            <ChevronRight size={16} />
+            <a href="/shop" className="hover:text-gray-700">Shop</a>
+            <ChevronRight size={16} />
+            <span className="text-gray-800">Cart</span>
+          </nav>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            <div className="flex justify-between items-center">
+              <span>{error}</span>
+              <button
+                onClick={() => {
+                  setError("");
+                  fetchCartItems();
+                }}
+                className="text-red-500 hover:text-red-700 font-semibold"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm">
-          <CartContent />
-        </div>
+        {(!cartData || cartData.items.length === 0) && !loading ? (
+          <div className="bg-white rounded-lg p-12 text-center">
+            <ShoppingBag size={64} className="mx-auto text-gray-400 mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Your cart is empty</h2>
+            <p className="text-gray-600 mb-8">Add some products to get started</p>
+            <a
+              href="/"
+              className="inline-flex items-center bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-semibold px-6 py-3 rounded-lg transition-colors"
+            >
+              <ArrowLeft size={20} className="mr-2" />
+              Continue Shopping
+            </a>
+          </div>
+        ) : cartData && cartData.items.length > 0 ? (
+          <div>
+            {/* Cart Header */}
+            <div className="flex items-center mb-8">
+              <div className="bg-yellow-100 p-3 rounded-lg mr-4">
+                <ShoppingBag size={24} className="text-yellow-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Your Cart</h2>
+                <p className="text-gray-600">{cartData.totalItems} items</p>
+              </div>
+            </div>
+
+            {/* Cart Items */}
+            <div className="space-y-4 mb-8">
+              {cartData.items.map((item) => {
+                const product = item.productId;
+                const isUpdating = updatingItems[product._id];
+                
+                return (
+                  <div key={item._id} className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-500 text-center p-2">
+                            {product.name}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-800 mb-1">{product.name}</h3>
+                        <p className="text-sm text-gray-500 mb-2">{product.category}</p>
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
+                        
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-lg font-bold text-gray-800">${product.price.toFixed(2)}</span>
+                            <span className="text-sm text-gray-500 ml-2">each</span>
+                          </div>
+                          
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center border border-gray-300 rounded">
+                              <button
+                                onClick={() => updateCartQuantity(product._id, item.quantity - 1)}
+                                disabled={isUpdating}
+                                className="px-3 py-1 hover:bg-gray-100 disabled:opacity-50"
+                              >
+                                <Minus size={16} />
+                              </button>
+                              <span className="px-3 py-1">{item.quantity}</span>
+                              <button
+                                onClick={() => updateCartQuantity(product._id, item.quantity + 1)}
+                                disabled={isUpdating}
+                                className="px-3 py-1 hover:bg-gray-100 disabled:opacity-50"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => removeFromCart(product._id)}
+                              disabled={isUpdating}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Promo Code & Total */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center">
+              <div className="flex items-center space-x-2 mb-4 md:mb-0">
+                <input
+                  type="text"
+                  placeholder="Promo code"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  className="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <button
+                  onClick={applyPromoCode}
+                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-semibold px-4 py-2 rounded transition"
+                >
+                  Apply
+                </button>
+              </div>
+              <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-6">
+                <p className="text-lg font-semibold text-gray-800">
+                  Total: ${cartData.totalPrice.toFixed(2)}
+                </p>
+                <button
+                  onClick={() => navigate("/order")} // ✅ Navigate to Order page
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition"
+                >
+                  Proceed to Order
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 };
 
-// Example usage component showing integration with shop
-const CartExample: React.FC = () => {
-  const [cart, setCart] = useState<Product[]>([
-    {
-      id: 1,
-      name: "Men Aviator Sunglasses",
-      category: "ACCESSORIES",
-      price: 50.00,
-      originalPrice: 60.00,
-      discount: "17% Off",
-      rating: 4,
-      reviews: 1,
-      image: "/api/placeholder/300/300",
-      description: "Classic aviator sunglasses with UV protection",
-      colors: ["Black", "Silver"],
-      sizes: ["One Size"],
-      quantity: 2
-    },
-    {
-      id: 2,
-      name: "Wireless Bluetooth Headphones",
-      category: "ELECTRONICS",
-      price: 120.00,
-      originalPrice: 150.00,
-      discount: "20% Off",
-      rating: 5,
-      reviews: 23,
-      image: "/api/placeholder/300/300",
-      description: "Premium wireless headphones with noise cancellation",
-      colors: ["Black", "White"],
-      sizes: ["One Size"],
-      quantity: 1
-    }
-  ]);
-
-  const [showCartModal, setShowCartModal] = useState(false);
-
-  const updateQuantity = (id: number, quantity: number) => {
-    if (quantity === 0) {
-      removeItem(id);
-      return;
-    }
-    setCart(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, quantity } : item
-      )
-    );
-  };
-
-  const removeItem = (id: number) => {
-    setCart(prev => prev.filter(item => item.id !== id));
-  };
-
-  const totalItems = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
-
-  return (
-    <div className="p-4">
-      {/* Cart trigger button */}
-      <button
-        onClick={() => setShowCartModal(true)}
-        className="fixed bottom-4 right-4 bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <ShoppingBag size={20} />
-          {totalItems > 0 && (
-            <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {totalItems}
-            </span>
-          )}
-        </div>
-      </button>
-
-      {/* Cart as full page */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">Cart as Full Page:</h2>
-        <Cart 
-          cartItems={cart} 
-          onUpdateQuantity={updateQuantity}
-          onRemoveItem={removeItem}
-        />
-      </div>
-
-      {/* Cart as modal */}
-      {showCartModal && (
-        <Cart 
-          cartItems={cart} 
-          onUpdateQuantity={updateQuantity}
-          onRemoveItem={removeItem}
-          onClose={() => setShowCartModal(false)}
-          showAsModal={true}
-        />
-      )}
-    </div>
-  );
-};
-
-export default CartExample;
+export default Cart;

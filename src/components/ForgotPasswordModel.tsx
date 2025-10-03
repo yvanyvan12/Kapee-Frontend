@@ -1,55 +1,97 @@
+import { useState } from "react";
+import axios from "axios";
+import { Notify } from "notiflix";
 
-import { X } from "lucide-react";
-import { Link} from "react-router-dom";
-
-type AuthModalProps = {
+type ForgotPasswordModalProps = {
   onClose: () => void;
 };
 
-const ForgotPasswordModal = ({ onClose }: AuthModalProps) => {
+const ForgotPasswordModal = ({ onClose }: ForgotPasswordModalProps) => {
+  const [step, setStep] = useState<"request" | "verify">("request");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  // Step 1: Request OTP
+  const handleRequestOTP = async () => {
+    try {
+      await axios.post("http://localhost:3000/user/forgot-password", { email });
+      Notify.success("OTP sent to your email!");
+      setStep("verify");
+    } catch (err) {
+      Notify.failure("Error sending OTP. Please try again.");
+    }
+  };
+
+  // Step 2: Verify OTP & Reset
+  const handleVerifyOTP = async () => {
+    try {
+      await axios.post("http://localhost:3000/user/reset-password", {
+        email,
+        otp,
+        newPassword,
+      });
+      Notify.success("Password reset successfully! You can now log in.");
+      onClose();
+    } catch (err) {
+      Notify.failure("Invalid OTP or expired. Try again.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-lg relative">
-        {/* Close Button */}
+      <div className="bg-white max-w-md w-full p-6 rounded-xl shadow-lg">
+        {step === "request" && (
+          <>
+            <h2 className="text-xl font-bold mb-4">Forgot Password</h2>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your registered email"
+              className="w-full border p-2 mb-4 rounded"
+            />
+            <button
+              onClick={handleRequestOTP}
+              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            >
+              Send OTP
+            </button>
+          </>
+        )}
+
+        {step === "verify" && (
+          <>
+            <h2 className="text-xl font-bold mb-4">Verify OTP</h2>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter OTP"
+              className="w-full border p-2 mb-3 rounded"
+            />
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+              className="w-full border p-2 mb-3 rounded"
+            />
+            <button
+              onClick={handleVerifyOTP}
+              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
+            >
+              Reset Password
+            </button>
+          </>
+        )}
+
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          className="mt-4 text-sm text-gray-600 hover:underline"
         >
-          <X size={24} />
+          Cancel
         </button>
-
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Forgot Password
-        </h2>
-
-        <p className="text-gray-600 text-sm mb-4 text-center">
-          Enter your email and we’ll send you reset instructions.
-        </p>
-
-        {/* Email */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            placeholder="Enter your email"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
-        </div>
-
-        {/* Submit */}
-        <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
-          Send Reset Link
-        </button>
-
-        {/* Back to login */}
-        <p className="text-center text-sm text-gray-600 mt-4">
-          Remembered your password?{" "}
-          <Link to="/LoginForm" className="text-blue-600 hover:underline">
-            Login
-          </Link>
-        </p>
       </div>
     </div>
   );

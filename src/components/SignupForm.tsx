@@ -1,99 +1,152 @@
+import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { Notify } from "notiflix";
+import axios from "axios";
 
-import { X } from "lucide-react";
-import {Link} from "react-router-dom";
+interface FormData {
+  username: string;
+  email: string;
+  password: string;
+  userRole: "user" | "admin";
+}
 
-type AuthModalProps = {
-  onClose: () => void;
-};
+const SignupModal = () => {
+  const navigate = useNavigate();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+    defaultValues: {
+      userRole: "user" // Set default role to user
+    }
+  });
 
-const SignupModal = ({ onClose }: AuthModalProps) => {
+  const onRegister = async (data: FormData) => {
+    console.log("Form submitted:", data); // 🔍 debug
+    try {
+      const { username, email, password, userRole } = data;
+
+      const response = await axios.post(
+        `http://localhost:3000/user/signup`, // ✅ fixed URL
+        { username, email, password, userRole },  // ✅ include userRole
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      // ✅ Check response and store auth info
+      if (response.data && response.data.token) {
+        localStorage.setItem("authToken", response.data.token);
+        localStorage.setItem("userRole", response.data.user?.userRole || "user");
+        localStorage.setItem("userId", response.data.user?.id || response.data.user?._id);
+        localStorage.setItem("userName", response.data.user?.username || username);
+
+        Notify.success(`Registration successful as ${response.data.user?.userRole || 'user'} 🎉`);
+        reset();
+        navigate("/dashboard"); // Redirect to dashboard directly
+      } else {
+        Notify.failure("Signup succeeded but no token received. Try logging in.");
+        navigate("/loginform");
+      }
+
+    } catch (error) {
+      console.error("Signup error:", error);
+      Notify.failure("Registration failed. Please try again.");
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-lg relative">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-        >
-          <X size={24} />
-        </button>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+      <form
+        onSubmit={handleSubmit(onRegister)}
+        className="w-full max-w-xs p-6 bg-white rounded shadow-md"
+      >
+        <h2 className="mb-6 text-2xl font-bold text-center">Register</h2>
 
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Sign Up
-        </h2>
-
-        {/* Full Name */}
+        {/* Username */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
           <input
             type="text"
-            placeholder="Enter your full name"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="Full Name"
+            className="w-full p-2 mb-1 border rounded"
+            {...register("username", { required: "Username is required" })}
           />
+          {errors.username && (
+            <p className="text-sm text-red-500">{errors.username.message}</p>
+          )}
         </div>
 
         {/* Email */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
           <input
             type="email"
-            placeholder="Enter your email"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="Email"
+            className="w-full p-2 mb-1 border rounded"
+            {...register("email", { required: "Email is required" })}
           />
+          {errors.email && (
+            <p className="text-sm text-red-500">{errors.email.message}</p>
+          )}
         </div>
 
         {/* Password */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
           <input
             type="password"
-            placeholder="Create a password"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="Password"
+            className="w-full p-2 mb-1 border rounded"
+            {...register("password", {
+              required: "Password is required",
+              minLength: { value: 6, message: "Password must be at least 6 characters" }
+            })}
           />
+          {errors.password && (
+            <p className="text-sm text-red-500">{errors.password.message}</p>
+          )}
         </div>
 
-        {/* Confirm Password */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Confirm Password
-          </label>
-          <input
-            type="password"
-            placeholder="Confirm your password"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
-        </div>
-
-        {/* Role Select */}
+        {/* User Role Selection */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Role
+          <label className="block mb-2 text-sm font-medium text-gray-700">
+            Account Type
           </label>
-          <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
+          <div className="space-y-2">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                value="user"
+                className="mr-2 text-blue-500"
+                {...register("userRole", { required: "Please select an account type" })}
+              />
+              <span className="text-sm">Regular User</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                value="admin"
+                className="mr-2 text-blue-500"
+                {...register("userRole", { required: "Please select an account type" })}
+              />
+              <span className="text-sm">Administrator</span>
+            </label>
+          </div>
+          {errors.userRole && (
+            <p className="text-sm text-red-500 mt-1">{errors.userRole.message}</p>
+          )}
         </div>
 
-        {/* Signup Button */}
-        <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
-          Sign Up
+        {/* Submit button */}
+        <button
+          type="submit"
+          className="w-full p-2 text-white bg-blue-500 rounded hover:bg-blue-600"
+        >
+          Register
         </button>
 
-        {/* Back to login */}
-        <p className="text-center text-sm text-gray-600 mt-4">
+        {/* Login link */}
+        <p className="mt-4 text-sm text-center text-gray-600">
           Already have an account?{" "}
-          <Link to="/LoginForm" className="text-blue-600 hover:underline">
+          <Link to="/loginform" className="text-blue-500 hover:underline">
             Login
           </Link>
         </p>
-      </div>
+      </form>
     </div>
   );
 };
