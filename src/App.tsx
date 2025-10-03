@@ -11,7 +11,7 @@ import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 import ForgotPasswordModel from './components/ForgotPasswordModel';
 import Dashboard from './dashboard/dashboard';
-import Order from './components/order';   // ✅ Import order
+import Order from './components/order';
 
 function App() {
   return (
@@ -25,16 +25,10 @@ function App() {
             <Route path="faq" element={<FAQ />} />
             <Route path="blogs" element={<Blogs />} />
             <Route path="cart" element={<Cart />} />
-            <Route path="order" element={<Order />} />   {/* ✅ Added order route */}
-
+            <Route path="order" element={<Order />} />
             <Route 
               path="loginForm" 
-              element={
-                <LoginForm  
-                  onClose={() => { }} 
-                  onSwitchToSignup={() => { throw new Error('Function not implemented.'); }} 
-                />
-              } 
+              element={<LoginForm onClose={() => {}} />} 
             />
             <Route path="signupform" element={<SignupForm />} />
             <Route path="forgotpasswordmodel" element={<ForgotPasswordModel onClose={() => {}} />} />
@@ -44,11 +38,7 @@ function App() {
           {/* Protected Dashboard routes WITHOUT layout */}
           <Route 
             path="/dashboard" 
-            element={
-              
-                <Dashboard />
-              
-            } 
+            element={<Dashboard />} 
           />
           <Route 
             path="orders" 
@@ -58,8 +48,10 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route path='/login' element={<LoginForm  onClose={() => {}} 
-      onSwitchToSignup={() => {}} />}/>
+          <Route 
+            path="/login" 
+            element={<LoginForm onClose={() => {}} />} 
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

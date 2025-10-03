@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  const [showSignup, setShowSignup] = useState(false);
+  const [showSignup] = useState(false);
 
   if (loading) {
     return (
@@ -24,12 +24,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
       <>
         {showSignup ? (
           <SignupModal 
-            onClose={() => setShowSignup(false)}
           />
         ) : (
           <LoginModal 
             onClose={() => {}} // Can't close without logging in
-            onSwitchToSignup={() => setShowSignup(true)}
           />
         )}
       </>

@@ -96,7 +96,7 @@ const navigationItems: NavigationItem[] = [
 ];
 
 // Utility function to get placeholder image
-const getPlaceholderImage = (productName: string, category: string) => {
+const getPlaceholderImage = (productName: string) => {
   const encodedName = encodeURIComponent(productName);
   return `https://via.placeholder.com/400x400/f3f4f6/6b7280?text=${encodedName}`;
 };
@@ -407,12 +407,12 @@ const KapeeStore: React.FC = () => {
                         onError={(e) => {
                           // Fallback to placeholder if image fails to load
                           const target = e.target as HTMLImageElement;
-                          target.src = getPlaceholderImage(product.name, product.category);
+                          target.src = getPlaceholderImage(product.name);
                         }}
                       />
                     ) : (
                       <img
-                        src={getPlaceholderImage(product.name, product.category)}
+                        src={getPlaceholderImage(product.name)}
                         alt={product.name}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                       />
@@ -490,12 +490,12 @@ const KapeeStore: React.FC = () => {
                                   onError={(e) => {
                                     // Fallback to placeholder if image fails to load
                                     const target = e.target as HTMLImageElement;
-                                    target.src = getPlaceholderImage(product.name, product.category);
+                                    target.src = getPlaceholderImage(product.name);
                                   }}
                                 />
                               ) : (
                                 <img
-                                  src={getPlaceholderImage(product.name, product.category)}
+                                  src={getPlaceholderImage(product.name)}
                                   alt={product.name}
                                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                                 />
@@ -764,12 +764,12 @@ const KapeeStore: React.FC = () => {
                       onError={(e) => {
                         // Fallback to placeholder if image fails to load
                         const target = e.target as HTMLImageElement;
-                        target.src = getPlaceholderImage(selectedProduct.name, selectedProduct.category);
+                        target.src = getPlaceholderImage(selectedProduct.name);
                       }}
                     />
                   ) : (
                     <img
-                      src={getPlaceholderImage(selectedProduct.name, selectedProduct.category)}
+                      src={getPlaceholderImage(selectedProduct.name)}
                       alt={selectedProduct.name}
                       className="w-full h-80 object-cover"
                     />

@@ -1,16 +1,16 @@
+// src/components/LoginModal.tsx
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Notify } from "notiflix";
 import ForgotPasswordModal from "./ForgotPasswordModel"; 
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 
 type AuthModalProps = {
   onClose: () => void;
-  onSwitchToSignup: () => void;
 };
 
-const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
+const LoginModal = ({ onClose }: AuthModalProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -38,16 +38,9 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
 
       const { token, user } = res.data;
 
-      console.log("🔎 Backend user response:", user);
-
-      // ✅ Save user data in localStorage safely
+      // ✅ Save user data in localStorage
       if (user) {
-        if (user.userRole) {
-          localStorage.setItem("userRole", user.userRole.toLowerCase()); // normalize
-        } else {
-          console.warn("⚠️ No userRole found in response, defaulting to 'user'");
-          localStorage.setItem("userRole", "user");
-        }
+        localStorage.setItem("userRole", user.userRole?.toLowerCase() || "user");
         localStorage.setItem("userId", user.id || user._id || "");
         localStorage.setItem("userName", user.username || "");
       }
@@ -55,12 +48,10 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
         localStorage.setItem("authToken", token);
       }
 
-      // ✅ Close the modal immediately after successful login
+      Notify.success(`Welcome back, ${user?.username || "User"}!`);
       onClose();
 
-      Notify.success(`Welcome back, ${user?.username || "User"}!`);
-
-      // ✅ Use role directly instead of re-fetching from localStorage
+      // ✅ Navigate based on role
       const role = user?.userRole?.toLowerCase();
       if (role === "admin") {
         navigate("/dashboard");
@@ -88,6 +79,7 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-lg relative">
+        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
@@ -95,11 +87,14 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
           <X size={24} />
         </button>
 
+        {/* Title */}
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           Sign in to Kapee Dashboard
         </h2>
 
+        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -114,6 +109,7 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
             />
           </div>
 
+          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
@@ -128,6 +124,7 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
             />
           </div>
 
+          {/* Forgot Password */}
           <p
             className="text-right text-sm text-blue-600 hover:underline cursor-pointer"
             onClick={() => setShowForgotPassword(true)}
@@ -135,12 +132,14 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
             Forgot Password?
           </p>
 
+          {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm">
               {error}
             </div>
           )}
 
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -150,16 +149,18 @@ const LoginModal = ({ onClose, onSwitchToSignup }: AuthModalProps) => {
           </button>
         </form>
 
+        {/* Sign up link */}
         <p className="text-center text-sm text-gray-600 mt-4">
           Don't have an account?{" "}
-          <button
-            onClick={onSwitchToSignup}
+          <Link 
+            to="/SignupForm"
             className="text-blue-600 hover:underline"
           >
             Sign Up
-          </button>
+          </Link>
         </p>
 
+        {/* Forgot Password Modal */}
         {showForgotPassword && (
           <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
         )}

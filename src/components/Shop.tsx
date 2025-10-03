@@ -19,9 +19,8 @@ interface Category {
 }
 
 // Utility function to get placeholder image
-const getPlaceholderImage = (productName: string, category: string) => {
+const getPlaceholderImage = (productName: string) => {
   const encodedName = encodeURIComponent(productName);
-  const encodedCategory = encodeURIComponent(category);
   return `https://via.placeholder.com/400x300/f3f4f6/6b7280?text=${encodedName}`;
 };
 
@@ -355,7 +354,7 @@ const EcommerceShop = () => {
               </div>
             </div>
 
-            {/* Product Grid - FIXED */}
+            {/* Product Grid */}
             {filteredProducts.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 text-lg">No products found matching your criteria.</p>
@@ -375,10 +374,9 @@ const EcommerceShop = () => {
               <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
                 {filteredProducts.map(product => (
                   <div key={product._id} className="bg-white rounded-lg shadow-sm overflow-hidden group hover:shadow-lg transition-all duration-300">
-                    {/* FIXED IMAGE SECTION */}
+                    {/* Image Section */}
                     <div className="relative overflow-hidden">
                       <div className="w-full h-64 bg-gray-100 relative">
-                        {/* Remove debug info and fix image display */}
                         {product.imageUrl && product.imageUrl.trim() !== '' ? (
                           <img 
                             src={product.imageUrl} 
@@ -387,20 +385,19 @@ const EcommerceShop = () => {
                             onLoad={() => console.log('Image loaded successfully:', product.imageUrl)}
                             onError={(e) => {
                               console.log('Image failed to load:', product.imageUrl);
-                              // Replace failed image with placeholder
-                              (e.target as HTMLImageElement).src = getPlaceholderImage(product.name, product.category);
+                              (e.target as HTMLImageElement).src = getPlaceholderImage(product.name);
                             }}
                           />
                         ) : (
                           <img
-                            src={getPlaceholderImage(product.name, product.category)}
+                            src={getPlaceholderImage(product.name)}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         )}
                       </div>
                       
-                      {/* FIXED Hover Buttons with proper z-index and visibility */}
+                      {/* Hover Buttons */}
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <div className="flex gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                           <button 
@@ -430,7 +427,7 @@ const EcommerceShop = () => {
                         </div>
                       </div>
 
-                      {/* Wishlist Button - Fixed positioning */}
+                      {/* Wishlist Button */}
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -470,7 +467,7 @@ const EcommerceShop = () => {
         </div>
       </div>
 
-      {/* FIXED Product Modal */}
+      {/* Product Modal */}
       {showModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -486,7 +483,7 @@ const EcommerceShop = () => {
             
             <div className="p-6">
               <div className="grid md:grid-cols-2 gap-8">
-                {/* Fixed Modal Image */}
+                {/* Modal Image */}
                 <div>
                   <div className="w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
                     {selectedProduct.imageUrl && selectedProduct.imageUrl.trim() !== '' ? (
@@ -495,12 +492,12 @@ const EcommerceShop = () => {
                         alt={selectedProduct.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = getPlaceholderImage(selectedProduct.name, selectedProduct.category);
+                          (e.target as HTMLImageElement).src = getPlaceholderImage(selectedProduct.name);
                         }}
                       />
                     ) : (
                       <img
-                        src={getPlaceholderImage(selectedProduct.name, selectedProduct.category)}
+                        src={getPlaceholderImage(selectedProduct.name)}
                         alt={selectedProduct.name}
                         className="w-full h-full object-cover"
                       />
@@ -554,8 +551,8 @@ const EcommerceShop = () => {
         </div>
       )}
 
-      {/* Add these styles to your global CSS or as a style tag */}
-      <style jsx>{`
+      {/* Styles */}
+      <style>{`
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
